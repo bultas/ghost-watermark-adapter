@@ -1,7 +1,10 @@
 const LocalImagesStorage = require("/var/lib/ghost/current/core/server/adapters/storage/LocalImagesStorage");
 
 const path = require("path");
-const sharp = require("sharp");
+const Jimp = require("jimp");
+const watermark = require("image-watermark");
+// const etag = require("etag");
+
 const errors = require("@tryghost/errors");
 const tpl = require("@tryghost/tpl");
 
@@ -21,38 +24,34 @@ class Watermark extends LocalImagesStorage {
 
   serve() {
     return (req, res, next) => {
-      const handleBufferRes = this.handleBufferRes(req, res, next);
-
       const filePath = (req.path || "").replace(/\/$|\\$/, "");
       const targetPath = path.join(this.storagePath, filePath);
 
-      const image = sharp(targetPath);
+      Jimp.read(targetPath, async (err, jimpObject) => {
+        if (err) {
+          this.handleError(err, next);
+        }
 
-      if (filePath.includes("size/w600")) {
-        image.toBuffer(handleBufferRes);
-      } else {
-        image
-          .composite([
-            {
-              input: `${__dirname}/logo.png`,
-              gravity: "southeast",
-            },
-          ])
-          .toBuffer(handleBufferRes);
-      }
-    };
-  }
+        const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK);
+        const img = jimpObject.print(
+          font,
+          10,
+          350,
+          "All copyrights @https://www.madeirago.cz"
+        );
 
-  handleBufferRes(req, res, next) {
-    return (err, data, info) => {
-      if (err) {
-        this.handleError(err, next);
-      }
+        img.getBuffer(Jimp.AUTO, (err, buffer) => {
+          if (err) {
+            this.handleError(err, next);
+          }
 
-      res.setHeader("Content-Type", mimeTypes[path.extname(req.path)]);
-      res.setHeader("Cache-Control", "public, max-age=86400000"); // one day
-      res.writeHead(200);
-      res.end(data);
+          res.setHeader("Content-Type", mimeTypes[path.extname(req.path)]);
+          res.setHeader("Cache-Control", "public, max-age=86400000"); // one day
+          // res.setHeader("ETag", etag(buffer));
+          res.writeHead(200);
+          res.end(buffer);
+        });
+      });
     };
   }
 

@@ -6,6 +6,7 @@
   "dependencies": {
     "@tryghost/errors": "^1.2.12",
     "@tryghost/tpl": "^0.1.16",
-    "sharp": "^0.30.4"
+    "image-watermark": "^0.0.7",
+    "jimp": "^0.16.1"
   }
 }
